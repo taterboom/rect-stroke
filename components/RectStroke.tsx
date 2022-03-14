@@ -2,7 +2,6 @@ import React, { useCallback, useState, useEffect, useRef, useMemo } from "react"
 import { Upload, Select, Button, Col, Row, Modal } from "antd"
 import "antd/dist/antd.css"
 import { ChromePicker } from "react-color"
-// import Canvas2Image from '../../utils/canvas2image';
 
 function loadImage(url: string): Promise<HTMLImageElement> {
   return new Promise((res, rej) => {
@@ -156,7 +155,9 @@ interface AttrItemProps {
 const AttrItem: React.SFC<AttrItemProps> = ({ label, children }) => {
   return (
     <Row gutter={[0, 20]}>
-      <Col span={6}>{label}:</Col>
+      <Col span={6} style={{ maxWidth: 128 }}>
+        {label}:
+      </Col>
       <Col span={18}>{children}</Col>
     </Row>
   )
@@ -213,7 +214,7 @@ const CanvasContainer = React.forwardRef<HTMLCanvasElement, CanvasContainerProps
       }
     }, [size, position, canvasSize])
     return (
-      <div className="grid-stroke__canvas-contianer">
+      <div className="grid-stroke__canvas-container">
         <div ref={canvasWrapper} className="grid-stroke__canvas">
           <canvas ref={ref} width={canvasSize} height={canvasSize}></canvas>
         </div>
@@ -234,7 +235,7 @@ const RectStroke: React.SFC = () => {
   const [modalVis, setModalVis] = useState(false)
   const [imgUrl, setImgUrl] = useState("")
   const [canvasSize, setCanvasSize] = useState(2016)
-  const [imgBase64Url, setImgBase64Url] = useState("")
+  const [imgBase64Url, setImgBase64Url] = useState("/example.png")
   const [unitSize, setUnitSize] = useState(16)
   const [gridColor, setGridColor] = useState({ r: 0, g: 0, b: 0, a: 1 })
   const [borderWidth, setborderWidth] = useState(1)
@@ -429,8 +430,11 @@ const RectStroke: React.SFC = () => {
             <Select.Option value={6}>6</Select.Option>
           </Select>
         </AttrItem>
+        <br />
         <Button onClick={exportImg}>导出</Button>
-        <Button onClick={showImg}>弹出图片手动保存</Button>
+        <Button onClick={showImg} style={{ marginLeft: 16 }}>
+          弹出图片手动保存
+        </Button>
 
         <Modal title="长按或右击保存" visible={modalVis} onOk={closeModal} onCancel={closeModal}>
           <div style={{ width: "400px", height: "400px", overflow: "scroll", margin: "0 auto" }}>

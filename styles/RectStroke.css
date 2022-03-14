@@ -1,0 +1,51 @@
+.grid-stroke__container {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  padding: 4px 4px 40px 4px;
+}
+.grid-stroke__canvas-container {
+}
+.grid-stroke__canvas {
+  max-height: 100vw;
+  overflow: scroll;
+  border: 1px solid;
+}
+.grid-stroke__map-container {
+  display: flex;
+  margin-top: 20px;
+}
+.grid-stroke__map {
+  width: 200px;
+  height: 200px;
+  border: 1px solid;
+  position: relative;
+  overflow: hidden;
+  margin-left: 50px;
+}
+.grid-stroke__map img {
+  width: 100%;
+  height: 100%;
+}
+.grid-stroke__map-handler {
+  position: absolute;
+  border: 1px solid;
+}
+.grid-stroke__attr {
+  flex: 1;
+  margin-top: 16px;
+  margin-left: 16px;
+}
+@media screen and (min-width: 768px) {
+  .grid-stroke__container {
+    flex-direction: row;
+  }
+  .grid-stroke__canvas-container {
+    width: 512px;
+    height: 512px;
+  }
+  .grid-stroke__canvas {
+    width: 512px;
+    height: 512px;
+  }
+}
