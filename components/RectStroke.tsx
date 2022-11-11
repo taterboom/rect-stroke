@@ -27,11 +27,13 @@ interface RGB {
   r: number // 255
   g: number
   b: number
-  a: number // 1
+  a?: number // 1
 }
 
-function rgb2arr(rgb: RGB, aType = 1): number[] {
-  let { r, g, b, a } = rgb
+type RGBValues = [RGB["r"], RGB["g"], RGB["b"], RGB["a"]]
+
+function rgb2arr(rgb: RGB, aType = 1): RGBValues {
+  let { r, g, b, a = 1 } = rgb
   if (aType === 255) {
     a = a * 255
   }
@@ -47,17 +49,30 @@ enum DIR {
 
 function stroke(
   this: Uint8ClampedArray,
-  start: number,
-  surround: boolean[],
-  surroundEnd: boolean[],
-  rgb: RGB,
-  unitSize: number,
-  size: number,
-  borderWidth: number
+  {
+    start,
+    surround,
+    surroundEnd,
+    unitSize,
+    size,
+    borderColor,
+    borderWidth,
+    border2Color,
+    border2Width,
+  }: {
+    start: number // 每个格子开始位置
+    surround: boolean[] // 周围（中间）无色 上 ｜ 右 ｜ 下 ｜ 左
+    surroundEnd: boolean[] // 周围（末尾）无色 上右 ｜ 右下 ｜ 下左 ｜ 左上
+    unitSize: number // 网格大小
+    size: number // canvas 大小
+    borderColor: RGBValues
+    borderWidth: number
+    border2Color: RGBValues
+    border2Width: number
+  }
 ) {
   const [tm, rm, bm, lm] = surround
   const [te, re, be, le] = surroundEnd
-  const borderColor = rgb2arr(rgb, 255)
   // const borderColor = [22,43,222, 255];
 
   // for (let i = 0; i < unitSize; i++) {
@@ -74,8 +89,29 @@ function stroke(
   // }
 
   if (tm) {
+    /**
+     *  ||||||||| 上border2
+     *  ||||||||| 上border
+     *  --------- 上边
+     */
     for (let i = 0; i < (rm && te ? unitSize + borderWidth : unitSize); i++) {
       strokeBorder.call(this, DIR.TOP, start + 4 * i, borderColor, size, borderWidth)
+    }
+    // -borderWidth + 1 的 “+ 1” 是因为在canvas中点的问题，实际上没有点都是个方块
+    for (
+      let i = lm ? -borderWidth + 1 : le ? borderWidth : 0;
+      i < (rm && te ? unitSize + borderWidth + border2Width : unitSize);
+      i++
+    ) {
+      strokeBorder.call(
+        this,
+        DIR.TOP,
+        start + 4 * i - borderWidth * size * 4,
+        border2Color,
+        size,
+        border2Width,
+        true
+      )
     }
   }
   if (rm) {
@@ -87,6 +123,21 @@ function stroke(
         borderColor,
         size,
         borderWidth
+      )
+    }
+    for (
+      let i = tm ? -borderWidth + 1 : te ? borderWidth : 0;
+      i < (bm && re ? unitSize + borderWidth + border2Width : unitSize);
+      i++
+    ) {
+      strokeBorder.call(
+        this,
+        DIR.RIGHT,
+        start + 4 * size * i + 4 * unitSize + borderWidth * 4,
+        border2Color,
+        size,
+        border2Width,
+        true
       )
     }
   }
@@ -101,6 +152,21 @@ function stroke(
         borderWidth
       )
     }
+    for (
+      let i = rm ? -borderWidth + 1 : re ? borderWidth : 0;
+      i < (lm && be ? unitSize + borderWidth + border2Width : unitSize);
+      i++
+    ) {
+      strokeBorder.call(
+        this,
+        DIR.BOTTOM,
+        start + 4 * (unitSize + borderWidth) * size + 4 * (unitSize - i),
+        border2Color,
+        size,
+        border2Width,
+        true
+      )
+    }
   }
   if (lm) {
     for (let i = 0; i < (tm && le ? unitSize + borderWidth : unitSize); i++) {
@@ -113,6 +179,22 @@ function stroke(
         borderWidth
       )
     }
+    for (
+      let i = bm ? -borderWidth + 1 : be ? borderWidth : 0;
+      i < (tm && le ? unitSize + borderWidth + border2Width : unitSize);
+      i++
+    ) {
+      console.log(tm, le)
+      strokeBorder.call(
+        this,
+        DIR.LEFT,
+        start + 4 * (unitSize - i) * size - borderWidth * 4,
+        border2Color,
+        size,
+        border2Width,
+        true
+      )
+    }
   }
 }
 
@@ -120,10 +202,13 @@ function strokeBorder(
   this: Uint8ClampedArray,
   type: DIR,
   index: number,
-  borderColor: number[],
+  borderColor: RGBValues,
   size: number,
-  borderWidth: number
+  borderWidth: number,
+  skipColored = false
 ) {
+  if (skipColored && this[index + 3] !== 0) return
+
   for (let i = 0; i < borderWidth; i++) {
     switch (type) {
       case DIR.TOP:
@@ -142,9 +227,9 @@ function strokeBorder(
   }
 }
 
-function fill1px(this: Uint8ClampedArray, index: number, borderColor: number[]) {
+function fill1px(this: Uint8ClampedArray, index: number, borderColor: RGBValues) {
   for (let i = 0; i < borderColor.length; i++) {
-    this[index + i] = borderColor[i]
+    this[index + i] = borderColor[i]!
   }
 }
 
@@ -236,10 +321,13 @@ const RectStroke: React.SFC = () => {
   const [imgUrl, setImgUrl] = useState("")
   const [canvasSize, setCanvasSize] = useState(2016)
   const [imgBase64Url, setImgBase64Url] = useState("/example.png")
+  // 网格大小
   const [unitSize, setUnitSize] = useState(16)
-  const [gridColor, setGridColor] = useState({ r: 0, g: 0, b: 0, a: 1 })
+  const [gridColor, setGridColor] = useState<RGB>({ r: 0, g: 0, b: 0, a: 1 })
   const [borderWidth, setborderWidth] = useState(1)
-  const [borderColor, setBorderColor] = useState({ r: 0, g: 0, b: 0, a: 1 })
+  const [borderColor, setBorderColor] = useState<RGB>({ r: 0, g: 0, b: 0, a: 1 })
+  const [border2Width, setborder2Width] = useState(0)
+  const [border2Color, setBorder2Color] = useState<RGB>({ r: 0, g: 0, b: 0, a: 1 })
   const canvasEl = useRef<HTMLCanvasElement>(null)
   const beforeUpload = useCallback((file) => {
     getBase64(file).then(setImgBase64Url)
@@ -314,8 +402,16 @@ const RectStroke: React.SFC = () => {
 
           let j = unitSize * 4
           while (j < data.length) {
+            // 检查每个有颜色的格子
             if (data[j + 4 * ((cw * unitSize) / 2 + unitSize / 2) + 3] !== 0) {
-              // 有颜色
+              /**
+               *     tm   te
+               *  --------
+               *  |      |
+               *  |      | rm
+               *  |      |
+               *  -------- re
+               */
               const tm = data[j - 4 * (cw - unitSize / 2) + 3] // 中间
               const te = data[j - 4 * (cw - unitSize) + 3] // 末尾
               const rm = data[j + 4 * ((unitSize / 2) * cw + unitSize + 1) + 3]
@@ -327,7 +423,17 @@ const RectStroke: React.SFC = () => {
               // toUpdateMap.set(i, [t, r, b, l].map(item => item === 0 || item === undefined));
               const surround = [tm, rm, bm, lm].map((item) => item === 0 || item === undefined)
               const surroundEnd = [te, re, be, le].map((item) => item === 0 || item === undefined)
-              stroke.call(data, j, surround, surroundEnd, borderColor, unitSize, cw, borderWidth)
+              stroke.call(data, {
+                start: j,
+                surround,
+                surroundEnd,
+                borderColor: rgb2arr(borderColor, 255),
+                unitSize,
+                size: cw,
+                borderWidth,
+                border2Color: rgb2arr(border2Color, 255),
+                border2Width,
+              })
               // break;
             }
             if (j % (4 * cw) === lastGrid) {
@@ -343,7 +449,16 @@ const RectStroke: React.SFC = () => {
         }
       })
     }
-  }, [imgBase64Url, unitSize, canvasSize, gridColor, borderWidth, borderColor])
+  }, [
+    imgBase64Url,
+    unitSize,
+    canvasSize,
+    gridColor,
+    borderWidth,
+    borderColor,
+    border2Color,
+    border2Width,
+  ])
 
   const selectUnitSize = useCallback((v) => {
     setUnitSize(v)
@@ -351,10 +466,6 @@ const RectStroke: React.SFC = () => {
 
   const selectColor = useCallback((v) => {
     setGridColor(v.rgb)
-  }, [])
-
-  const selectBorderColor = useCallback((v) => {
-    setBorderColor(v.rgb)
   }, [])
 
   const selectCanvasSize = useCallback((v) => {
@@ -419,11 +530,25 @@ const RectStroke: React.SFC = () => {
             <Select.Option value={16}>16</Select.Option>
           </Select>
         </AttrItem>
-        <AttrItem label="描边颜色">
-          <ChromePicker color={borderColor} onChange={selectBorderColor}></ChromePicker>
+        <AttrItem label="描边颜色1">
+          <ChromePicker color={borderColor} onChange={(e) => setBorderColor(e.rgb)}></ChromePicker>
         </AttrItem>
-        <AttrItem label="描边宽度">
-          <Select defaultValue={1} style={{ width: 60 }} onChange={setborderWidth}>
+        <AttrItem label="描边宽度1">
+          <Select style={{ width: 60 }} value={borderWidth} onChange={setborderWidth}>
+            <Select.Option value={1}>1</Select.Option>
+            <Select.Option value={2}>2</Select.Option>
+            <Select.Option value={4}>4</Select.Option>
+            <Select.Option value={6}>6</Select.Option>
+          </Select>
+        </AttrItem>
+        <AttrItem label="描边颜色2">
+          <ChromePicker
+            color={border2Color}
+            onChange={(e) => setBorder2Color(e.rgb)}
+          ></ChromePicker>
+        </AttrItem>
+        <AttrItem label="描边宽度2">
+          <Select style={{ width: 60 }} value={border2Width} onChange={setborder2Width}>
             <Select.Option value={1}>1</Select.Option>
             <Select.Option value={2}>2</Select.Option>
             <Select.Option value={4}>4</Select.Option>
