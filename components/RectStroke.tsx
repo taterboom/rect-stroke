@@ -312,7 +312,7 @@ const CanvasContainer = React.forwardRef<HTMLCanvasElement, CanvasContainerProps
           </div>
         </div>
         <div style={{ marginTop: 16 }}>
-          Colors: {[...opaqueMap.entries()].map(([_, value]) => value).reduce((a, b) => a + b)}
+          Colors: {[...opaqueMap.entries()].map(([_, value]) => value).reduce((a, b) => a + b, 0)}
         </div>
         <div style={{ display: "grid", gridTemplateColumns: `repeat(8, 1fr)`, marginTop: 4 }}>
           {[...opaqueMap.entries()].map(([key, value]) => (
