@@ -251,13 +251,14 @@ const AttrItem: React.SFC<AttrItemProps> = ({ label, children }) => {
 interface CanvasContainerProps {
   canvasSize: number
   imgUrl: string
+  opaqueMap: Map<string, number>
 }
 
 const MAP_SIZE = 200
 
 // eslint-disable-next-line react/display-name
 const CanvasContainer = React.forwardRef<HTMLCanvasElement, CanvasContainerProps>(
-  ({ canvasSize, imgUrl }, ref) => {
+  ({ canvasSize, imgUrl, opaqueMap }, ref) => {
     const canvasWrapper = useRef<HTMLDivElement>(null)
     const [size, setSize] = useState(() => ({ width: 0, height: 0 }))
     const [position, setPosition] = useState(() => ({ left: 0, top: 0 }))
@@ -310,6 +311,26 @@ const CanvasContainer = React.forwardRef<HTMLCanvasElement, CanvasContainerProps
             <div className="grid-stroke__map-handler" style={handlerAttr}></div>
           </div>
         </div>
+        <div style={{ marginTop: 16 }}>
+          Colors: {[...opaqueMap.entries()].map(([_, value]) => value).reduce((a, b) => a + b)}
+        </div>
+        <div style={{ display: "grid", gridTemplateColumns: `repeat(8, 1fr)`, marginTop: 4 }}>
+          {[...opaqueMap.entries()].map(([key, value]) => (
+            <div key={key} style={{ display: "flex", alignItems: "center" }}>
+              <div
+                style={{
+                  background: `rgba(${key})`,
+                  width: 16,
+                  height: 16,
+                  borderRadius: 4,
+                  border: "1px solid black",
+                  marginRight: 4,
+                }}
+              ></div>
+              <div>{value}</div>
+            </div>
+          ))}
+        </div>
       </div>
     )
   }
@@ -328,6 +349,7 @@ const RectStroke: React.SFC = () => {
   const [borderColor, setBorderColor] = useState<RGB>({ r: 0, g: 0, b: 0, a: 1 })
   const [border2Width, setborder2Width] = useState(0)
   const [border2Color, setBorder2Color] = useState<RGB>({ r: 0, g: 0, b: 0, a: 1 })
+  const [opaqueMap, setOpaqueMap] = useState(new Map())
   const canvasEl = useRef<HTMLCanvasElement>(null)
   const beforeUpload = useCallback((file) => {
     getBase64(file).then(setImgBase64Url)
@@ -401,9 +423,20 @@ const RectStroke: React.SFC = () => {
           }
 
           let j = unitSize * 4
+          const opaqueMap = new Map()
           while (j < data.length) {
             // 检查每个有颜色的格子
             if (data[j + 4 * ((cw * unitSize) / 2 + unitSize / 2) + 3] !== 0) {
+              const r = data[j + 4 * ((cw * unitSize) / 2 + unitSize / 2)]
+              const g = data[j + 4 * ((cw * unitSize) / 2 + unitSize / 2) + 1]
+              const b = data[j + 4 * ((cw * unitSize) / 2 + unitSize / 2) + 2]
+              const a = data[j + 4 * ((cw * unitSize) / 2 + unitSize / 2) + 3]
+              const key = [r, g, b, a].join(",")
+              if (opaqueMap.get(key)) {
+                opaqueMap.set(key, opaqueMap.get(key) + 1)
+              } else {
+                opaqueMap.set(key, 1)
+              }
               /**
                *     tm   te
                *  --------
@@ -442,7 +475,7 @@ const RectStroke: React.SFC = () => {
               j += 4 * unitSize
             }
           }
-
+          setOpaqueMap(opaqueMap)
           ctx.putImageData(imageData, 0, 0)
 
           setImgUrl(canvasEl.current.toDataURL("image/png"))
@@ -500,7 +533,12 @@ const RectStroke: React.SFC = () => {
           <img src={imgUrl} alt=""></img>
         </div>
       </div> */}
-      <CanvasContainer ref={canvasEl} canvasSize={canvasSize} imgUrl={imgUrl}></CanvasContainer>
+      <CanvasContainer
+        ref={canvasEl}
+        canvasSize={canvasSize}
+        imgUrl={imgUrl}
+        opaqueMap={opaqueMap}
+      ></CanvasContainer>
       <div className="grid-stroke__attr">
         <AttrItem label="图片">
           <Upload listType="picture-card" showUploadList={false} beforeUpload={beforeUpload}>
